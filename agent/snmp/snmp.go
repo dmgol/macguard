@@ -10,7 +10,7 @@ import (
 	"github.com/soniah/gosnmp"
 )
 
-type GetMacAddressTableRequest struct {
+type MacAddressTableRequest struct {
 	Target    string
 	Community string
 }

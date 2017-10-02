@@ -26,7 +26,7 @@ func main() {
 
 	corrId := uuid.NewV4().String()
 
-	req := snmp.GetMacAddressTableRequest{Target: "10.102.7.61", Community: "test"}
+	req := snmp.MacAddressTableRequest{Target: "10.102.7.61", Community: "test"}
 	body, err := json.Marshal(req)
 	utils.FailOnError(err, "Failed to marshal json")
 	err = q.Call(body, corrId, callback.Name())

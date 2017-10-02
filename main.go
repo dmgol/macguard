@@ -36,7 +36,7 @@ func main() {
 
 	go func() {
 		for d := range msgs {
-			var r snmp.GetMacAddressTableRequest
+			var r snmp.MacAddressTableRequest
 			json.Unmarshal(d.Body, &r)
 			log.Printf("Received a message: %v", r)
 			macAddressTable, _ := snmp.GetMacAddressTable(net.ParseIP(r.Target), r.Community)
