@@ -17,10 +17,11 @@ func declareAndConsumeQueue(mb *mb.MessageBus, queueName string, consumeFunc Con
 	utils.FailOnError(err, "Failed to declare a queue")
 
 	msgs, err := q.Consume()
+	utils.FailOnError(err, "Failed to register a consumer")
+
 	go consumeFunc(msgs, func(reply []byte, correlationId, replyTo string) {
 		q.Reply(reply, correlationId, replyTo)
 	})
-	utils.FailOnError(err, "Failed to register a consumer")
 }
 
 func main() {
