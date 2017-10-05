@@ -9,21 +9,6 @@ import (
 	"github.com/dmgol/macguard/utils"
 )
 
-type ReplyFunc func(reply []byte, correlationId, replyTo string)
-type ConsumeFunc func(msgs mb.DeliveryChan, reply ReplyFunc)
-
-func declareAndConsumeQueue(bus *mb.MessageBus, queueName string, consumeFunc ConsumeFunc) {
-	q, err := bus.DeclareQueue(queueName)
-	utils.FailOnError(err, "Failed to declare a queue")
-
-	msgs, err := q.Consume()
-	utils.FailOnError(err, "Failed to register a consumer")
-
-	go consumeFunc(msgs, func(reply []byte, correlationId, replyTo string) {
-		q.Reply(reply, correlationId, replyTo)
-	})
-}
-
 func main() {
 
 	bus, err := mb.Connect("amqp://guest:guest@10.44.32.99:5672/")
@@ -32,17 +17,30 @@ func main() {
 
 	forever := make(chan bool)
 
-	declareAndConsumeQueue(bus, "mac_address_table", func(msgs mb.DeliveryChan, reply ReplyFunc) {
-		for d := range msgs {
-			var params snmp.SnmpParams
-			json.Unmarshal(d.Body, &params)
-			log.Printf("Received a message[mac_address_table]: %v", params)
-			macAddrTable, _ := snmp.GetMacAddrTable(params)
-			log.Printf("Mac address table for %s (%d total)\n", params.Target, len(macAddrTable))
-			result, _ := json.Marshal(macAddrTable)
-			reply(result, d.CorrelationId, d.ReplyTo)
-		}
+	err = bus.DeclareAndConsumeSnmpQueue("snmp_mac_addr_table", func(params snmp.Params) []byte {
+		macAddrTable, _ := snmp.GetMacAddrTable(params)
+		log.Printf("Mac address table for %s (%d total)\n", params.Target, len(macAddrTable))
+		result, _ := json.Marshal(macAddrTable)
+		return result
 	})
+	utils.FailOnError(err, "Failed to declare the queue 'snmp_mac_addr_table'")
+
+	err = bus.DeclareAndConsumeSnmpQueue("snmp_vlan_list", func(params snmp.Params) []byte {
+		vlans, _ := snmp.GetVlanList(params)
+		log.Printf("Vlan list for %s (%d total)\n", params.Target, len(vlans))
+		result, _ := json.Marshal(vlans)
+		return result
+	})
+	utils.FailOnError(err, "Failed to declare the queue 'snmp_port_list'")
+
+	err = bus.DeclareAndConsumeSnmpQueue("snmp_port_list", func(params snmp.Params) []byte {
+		ports, _ := snmp.GetPortList(params)
+		log.Printf("Port list for %s (%d total)\n", params.Target, len(ports))
+		result, _ := json.Marshal(ports)
+		return result
+	})
+	utils.FailOnError(err, "Failed to declare the queue 'snmp_port_list'")
+
 	log.Printf(" [*] Waiting for messages. To exit press CTRL+C")
 	<-forever
 }

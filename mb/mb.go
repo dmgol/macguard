@@ -1,6 +1,12 @@
 package mb
 
 import (
+	"encoding/json"
+	"log"
+
+	"github.com/dmgol/macguard/agent/snmp"
+	"github.com/dmgol/macguard/utils"
+	uuid "github.com/satori/go.uuid"
 	"github.com/streadway/amqp"
 )
 
@@ -132,4 +138,70 @@ func (me *MessageBus) Close() {
 	if me.conn != nil {
 		me.conn.Close()
 	}
+}
+
+type ReplyFunc func(params snmp.Params) []byte
+
+func (me *MessageBus) DeclareAndConsumeSnmpQueue(queueName string, replyFunc ReplyFunc) error {
+	q, err := me.DeclareQueue(queueName)
+	utils.FailOnError(err, "Failed to declare a queue")
+
+	msgs, err := q.Consume()
+	if err != nil {
+		return err
+	}
+
+	go func() {
+		for d := range msgs {
+			var params snmp.Params
+			json.Unmarshal(d.Body, &params)
+			log.Printf("Received a message[%s]: %v", queueName, params)
+			result := replyFunc(params)
+			q.Reply(result, d.CorrelationId, d.ReplyTo)
+		}
+	}()
+
+	return nil
+}
+
+type CallbackFunc func(data []byte) error
+
+func (me *MessageBus) CallSmtpQueue(queueName string, params snmp.Params, callbackFunc CallbackFunc) error {
+	q, err := me.DeclareQueue(queueName)
+	if err != nil {
+		return err
+	}
+
+	cbQueue, err := me.DeclareCallbackQueue()
+	if err != nil {
+		return err
+	}
+
+	msgs, err := cbQueue.Consume()
+	if err != nil {
+		return err
+	}
+
+	corrId := uuid.NewV4().String()
+
+	body, err := json.Marshal(params)
+	if err != nil {
+		return err
+	}
+
+	err = q.Call(body, corrId, cbQueue.Name())
+	if err != nil {
+		return err
+	}
+
+	for d := range msgs {
+		if d.CorrelationId == corrId {
+			err := callbackFunc(d.Body)
+			if err != nil {
+				return err
+			}
+			break
+		}
+	}
+	return nil
 }

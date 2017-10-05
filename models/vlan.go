@@ -11,13 +11,13 @@ import (
 )
 
 type Vlan struct {
-	ID        uuid.UUID `json:"id" db:"id"`
-	CreatedAt time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
+	ID        uuid.UUID `json:"-" db:"id"`
+	CreatedAt time.Time `json:"-" db:"created_at"`
+	UpdatedAt time.Time `json:"-" db:"updated_at"`
 	Name      string    `json:"name" db:"name"`
 	Number    int       `json:"number" db:"number"`
 	Deleted   bool      `json:"deleted" db:"deleted"`
-	SwitchID  uuid.UUID `json:"switch_id" db:"switch_id"`
+	SwitchID  uuid.UUID `json:"-" db:"switch_id"`
 }
 
 // String is not required by pop and may be deleted

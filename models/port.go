@@ -11,7 +11,7 @@ import (
 )
 
 type Port struct {
-	ID        uuid.UUID `json:"-id" db:"id"`
+	ID        uuid.UUID `json:"-" db:"id"`
 	CreatedAt time.Time `json:"-" db:"created_at"`
 	UpdatedAt time.Time `json:"-" db:"updated_at"`
 	Name      string    `json:"name" db:"name"`
