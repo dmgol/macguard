@@ -1,0 +1,7 @@
+create_table("mac_addr_table_entries", func(t) {
+	t.Column("id", "uuid", {"primary": true})
+	t.Column("mac_addr", "macaddr", {})
+	t.Column("port_id", "uuid", {})
+	t.Column("vlan_id", "uuid", {})
+	t.Column("table_id", "uuid", {})
+})

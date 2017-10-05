@@ -1,0 +1,7 @@
+development:
+  dialect: "postgres"
+  database: "macguard"
+  host: "10.44.32.99"
+  port: "5432"
+  user: "postgres"
+  password: "654321"

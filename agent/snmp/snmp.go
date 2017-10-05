@@ -2,25 +2,18 @@ package snmp
 
 import (
 	"fmt"
-	"net"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/dmgol/macguard/models"
 	"github.com/soniah/gosnmp"
 )
 
-type MacAddressTableRequest struct {
+type SnmpParams struct {
 	Target    string
 	Community string
 }
-
-type MacAddressTableEntry struct {
-	Address string
-	Port    int
-}
-
-type MacAddressTable []MacAddressTableEntry
 
 func snmpConnect(target string, community string) (*gosnmp.GoSNMP, error) {
 	result := &gosnmp.GoSNMP{
@@ -38,8 +31,16 @@ func snmpConnect(target string, community string) (*gosnmp.GoSNMP, error) {
 const macAddressTableOid = ".1.3.6.1.2.1.17.4.3.1.2"
 const macAddressOctetCount = 6
 
-func extractMACFromName(pduName string) string {
-	split := strings.Split(pduName, ".")
+func getLastNumberFromPduName(name string) int {
+	if last := strings.LastIndex(name, "."); last != -1 {
+		result, _ := strconv.Atoi(name[last+1:])
+		return result
+	}
+	return -1
+}
+
+func extractMacAddrFromPdu(pdu *gosnmp.SnmpPDU) string {
+	split := strings.Split(pdu.Name, ".")
 	macAddrStart := len(split) - macAddressOctetCount
 	hexStrings := make([]string, macAddressOctetCount)
 	for i := 0; i < macAddressOctetCount; i++ {
@@ -49,18 +50,18 @@ func extractMACFromName(pduName string) string {
 	return strings.Join(hexStrings, ":")
 }
 
-func pduToMacAddressTableEntry(pdu gosnmp.SnmpPDU) MacAddressTableEntry {
-	result := MacAddressTableEntry{}
-	result.Address = extractMACFromName(pdu.Name)
+func pduToMacAddrTableEntry(pdu *gosnmp.SnmpPDU) models.MacAddrTableEntry {
+	result := models.MacAddrTableEntry{}
+	result.MacAddr = extractMacAddrFromPdu(pdu)
 	if pdu.Type == gosnmp.Integer {
-		result.Port = pdu.Value.(int)
+		result.PortNumber = pdu.Value.(int)
 	}
 	return result
 }
 
-func GetMacAddressTable(target net.IP, community string) (MacAddressTable, error) {
+func GetMacAddrTable(params SnmpParams) (models.MacAddrTableEntries, error) {
 
-	session, err := snmpConnect(target.String(), community)
+	session, err := snmpConnect(params.Target, params.Community)
 	if err != nil {
 		return nil, fmt.Errorf("connect err: %v", err)
 	}
@@ -70,45 +71,28 @@ func GetMacAddressTable(target net.IP, community string) (MacAddressTable, error
 	if err != nil {
 		return nil, fmt.Errorf("bulk walk err: %v", err)
 	}
-	result := make(MacAddressTable, len(pduList))
+	result := make(models.MacAddrTableEntries, len(pduList))
 	for i, pdu := range pduList {
-		result[i] = pduToMacAddressTableEntry(pdu)
+		result[i] = pduToMacAddrTableEntry(&pdu)
 	}
 	return result, nil
 }
 
 const vlanListOid = ".1.3.6.1.4.1.9.9.46.1.3.1.1.2"
 
-func getLastNumberFromName(name string) int {
-	if last := strings.LastIndex(name, "."); last != -1 {
-		result, _ := strconv.Atoi(name[last+1:])
-		return result
+func GetVlanList(params SnmpParams) (models.Vlans, error) {
+	session, err := snmpConnect(params.Target, params.Community)
+	if err != nil {
+		return nil, err
 	}
-	return -1
-}
-
-func pduToVlan(pdu gosnmp.SnmpPDU) int {
-	return getLastNumberFromName(pdu.Name)
-}
-
-func getCiscoVlanList(session *gosnmp.GoSNMP) ([]int, error) {
+	defer session.Conn.Close()
 	pduList, err := session.BulkWalkAll(vlanListOid)
 	if err != nil {
 		return nil, fmt.Errorf("bulk walk err: %v", err)
 	}
-	result := make([]int, len(pduList))
+	result := make(models.Vlans, len(pduList))
 	for i, pdu := range pduList {
-		result[i] = pduToVlan(pdu)
+		result[i].Number = getLastNumberFromPduName(pdu.Name)
 	}
 	return result, nil
-}
-
-func TestGetCiscoVlanList(target net.IP, community string) []int {
-	session, err := snmpConnect(target.String(), community)
-	if err != nil {
-		return nil
-	}
-	defer session.Conn.Close()
-	vlans, _ := getCiscoVlanList(session)
-	return vlans
 }

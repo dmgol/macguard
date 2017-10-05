@@ -1,0 +1,1 @@
+drop_table("arp_table_entries")

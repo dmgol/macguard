@@ -3,49 +3,45 @@ package main
 import (
 	"encoding/json"
 	"log"
-	"net"
 
 	"github.com/dmgol/macguard/agent/snmp"
 	"github.com/dmgol/macguard/mb"
 	"github.com/dmgol/macguard/utils"
 )
 
-func main() {
-	//const targetIP = "10.102.7.2"
-	// macAddressTable, _ := snmp.GetMACAddressTable(net.ParseIP(targetIP), "test@5")
-	// fmt.Printf("Mac address table for %s (%d total)\n", targetIP, len(macAddressTable))
-	// for _, row := range macAddressTable {
-	// 	fmt.Println(row)
-	// }
-	// vlans := snmp.TestGetCiscoVlanList(net.ParseIP(targetIP), "test")
-	// for _, v := range vlans {
-	// 	fmt.Println(v)
-	// }
+type ReplyFunc func(reply []byte, correlationId, replyTo string)
+type ConsumeFunc func(msgs mb.DeliveryChan, reply ReplyFunc)
 
-	mb, err := mb.Connect("amqp://guest:guest@10.44.32.99:5672/")
-	utils.FailOnError(err, "Failed to connect to RabbitMQ")
-	defer mb.Close()
-
-	q, err := mb.DeclareQueue("mac_address_table")
+func declareAndConsumeQueue(mb *mb.MessageBus, queueName string, consumeFunc ConsumeFunc) {
+	q, err := mb.DeclareQueue(queueName)
 	utils.FailOnError(err, "Failed to declare a queue")
 
 	msgs, err := q.Consume()
+	go consumeFunc(msgs, func(reply []byte, correlationId, replyTo string) {
+		q.Reply(reply, correlationId, replyTo)
+	})
 	utils.FailOnError(err, "Failed to register a consumer")
+}
+
+func main() {
+
+	bus, err := mb.Connect("amqp://guest:guest@10.44.32.99:5672/")
+	utils.FailOnError(err, "Failed to connect to RabbitMQ")
+	defer bus.Close()
 
 	forever := make(chan bool)
 
-	go func() {
+	declareAndConsumeQueue(bus, "mac_address_table", func(msgs mb.DeliveryChan, reply ReplyFunc) {
 		for d := range msgs {
-			var r snmp.MacAddressTableRequest
-			json.Unmarshal(d.Body, &r)
-			log.Printf("Received a message: %v", r)
-			macAddressTable, _ := snmp.GetMacAddressTable(net.ParseIP(r.Target), r.Community)
-			log.Printf("Mac address table for %s (%d total)\n", r.Target, len(macAddressTable))
-			reply, _ := json.Marshal(macAddressTable)
-			q.Reply(reply, d.CorrelationId, d.ReplyTo)
+			var params snmp.SnmpParams
+			json.Unmarshal(d.Body, &params)
+			log.Printf("Received a message[mac_address_table]: %v", params)
+			macAddrTable, _ := snmp.GetMacAddrTable(params)
+			log.Printf("Mac address table for %s (%d total)\n", params.Target, len(macAddrTable))
+			result, _ := json.Marshal(macAddrTable)
+			reply(result, d.CorrelationId, d.ReplyTo)
 		}
-	}()
-
+	})
 	log.Printf(" [*] Waiting for messages. To exit press CTRL+C")
 	<-forever
 }

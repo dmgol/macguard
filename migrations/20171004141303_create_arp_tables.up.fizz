@@ -1,0 +1,4 @@
+create_table("arp_tables", func(t) {
+	t.Column("id", "uuid", {"primary": true})
+	t.Column("switch_id", "uuid", {})
+})

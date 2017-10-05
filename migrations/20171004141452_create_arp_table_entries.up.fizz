@@ -1,0 +1,6 @@
+create_table("arp_table_entries", func(t) {
+	t.Column("id", "uuid", {"primary": true})
+	t.Column("mac_addr", "macaddr", {})
+	t.Column("ip_addr", "inet", {})
+	t.Column("table_id", "uuid", {})
+})

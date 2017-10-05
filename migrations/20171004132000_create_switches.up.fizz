@@ -1,0 +1,8 @@
+create_table("switches", func(t) {
+	t.Column("id", "uuid", {"primary": true})
+	t.Column("name", "text", {})
+	t.Column("location", "text", {})
+	t.Column("ip_addr", "text", {})
+	t.Column("model_id", "uuid", {})
+	t.Column("community_id", "uuid", {})
+})
