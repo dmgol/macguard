@@ -12,8 +12,8 @@ import (
 type ReplyFunc func(reply []byte, correlationId, replyTo string)
 type ConsumeFunc func(msgs mb.DeliveryChan, reply ReplyFunc)
 
-func declareAndConsumeQueue(mb *mb.MessageBus, queueName string, consumeFunc ConsumeFunc) {
-	q, err := mb.DeclareQueue(queueName)
+func declareAndConsumeQueue(bus *mb.MessageBus, queueName string, consumeFunc ConsumeFunc) {
+	q, err := bus.DeclareQueue(queueName)
 	utils.FailOnError(err, "Failed to declare a queue")
 
 	msgs, err := q.Consume()
