@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"log"
 
-	"github.com/dmgol/macguard/agent/snmp"
+	"github.com/dmgol/macguard/snmp"
 	"github.com/dmgol/macguard/utils"
 	uuid "github.com/satori/go.uuid"
 	"github.com/streadway/amqp"

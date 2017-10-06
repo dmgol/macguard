@@ -13,6 +13,7 @@ import (
 type Params struct {
 	Target    string
 	Community string
+	Vendor    string
 }
 
 func snmpConnect(target string, community string) (*gosnmp.GoSNMP, error) {
@@ -68,7 +69,10 @@ func getPortNumberMap(session *gosnmp.GoSNMP) (map[int]int, error) {
 	}
 	result := make(map[int]int)
 	for _, pdu := range pduList {
-		result[getLastNumberFromPduName(pdu.Name)] = pdu.Value.(int)
+		v, ok := pdu.Value.(int)
+		if ok {
+			result[getLastNumberFromPduName(pdu.Name)] = v
+		}
 	}
 	return result, nil
 }
@@ -99,7 +103,8 @@ func GetMacAddrTable(params Params) (models.MacAddrTableEntries, error) {
 	return result, nil
 }
 
-const vlanListOid = ".1.3.6.1.4.1.9.9.46.1.3.1.1.2"
+const vlanListOidCisco = ".1.3.6.1.4.1.9.9.46.1.3.1.1.2"
+const vlanListOid = "1.3.6.1.2.1.17.7.1.4.3.1.1"
 
 func GetVlanList(params Params) (models.Vlans, error) {
 	session, err := snmpConnect(params.Target, params.Community)
@@ -107,7 +112,13 @@ func GetVlanList(params Params) (models.Vlans, error) {
 		return nil, err
 	}
 	defer session.Conn.Close()
-	pduList, err := session.BulkWalkAll(vlanListOid)
+
+	oid := vlanListOid
+	if params.Vendor == "Cisco" {
+		oid = vlanListOidCisco
+	}
+
+	pduList, err := session.BulkWalkAll(oid)
 	if err != nil {
 		return nil, fmt.Errorf("bulk walk err: %v", err)
 	}

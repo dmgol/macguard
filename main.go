@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"log"
 
-	"github.com/dmgol/macguard/agent/snmp"
 	"github.com/dmgol/macguard/mb"
+	"github.com/dmgol/macguard/snmp"
 	"github.com/dmgol/macguard/utils"
 )
 

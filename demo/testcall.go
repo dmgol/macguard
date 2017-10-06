@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/dmgol/macguard/agent/snmp"
 	"github.com/dmgol/macguard/mb"
 	"github.com/dmgol/macguard/models"
+	"github.com/dmgol/macguard/snmp"
 	"github.com/dmgol/macguard/utils"
 	"github.com/markbates/pop"
 )
@@ -42,7 +42,7 @@ func getMacAddrTable(bus *mb.MessageBus, db *pop.Connection) {
 }
 
 func getVlanList(bus *mb.MessageBus, db *pop.Connection) {
-	bus.CallSmtpQueue("snmp_vlan_list", snmp.Params{Target: "10.102.7.62", Community: "test"}, func(data []byte) error {
+	bus.CallSmtpQueue("snmp_vlan_list", snmp.Params{Target: "10.102.7.2", Community: "test", Vendor: "Cisco"}, func(data []byte) error {
 		var vlans models.Vlans
 		err := json.Unmarshal(data, &vlans)
 		if err != nil {
@@ -74,7 +74,7 @@ func main() {
 	utils.FailOnError(err, "Failed to connect to RabbitMQ")
 	defer bus.Close()
 
-	getMacAddrTable(bus, db)
-	//getVlanList(bus, db)
-	getPortList(bus, db)
+	//getMacAddrTable(bus, db)
+	getVlanList(bus, db)
+	//getPortList(bus, db)
 }
